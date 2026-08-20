@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chookas: The Director's Cut</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cream: #f4efeb;
+            --ink: #1a1a1a;
+            --gold: #c5a059;
+            --red: #8b1e1e;
+            --success: #2e7d32;
+            --wood: #3d2817;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            background-color: var(--ink);
+            color: var(--ink);
+            font-family: 'Lora', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            max-height: 900px;
+            background-color: var(--cream);
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            border-left: 2px solid var(--gold);
+            border-right: 2px solid var(--gold);
+            overflow: hidden;
+        }
+
+        /* Top HUD */
+        #hud {
+            display: none;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--ink);
+            color: var(--cream);
+            font-family: 'Playfair Display', serif;
+            font-weight: bold;
+            font-size: 0.95rem;
+            border-bottom: 3px solid var(--gold);
+            z-index: 100;
+        }
+        .hud-stat span { color: var(--gold); }
+
+        #stage {
+            flex-grow: 1;
+            padding: 25px;
+            position: relative;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        h1, h2, h3 { font-family: 'Playfair Display', serif; text-transform: uppercase; text-align: center; }
+        h1 { font-size: 3.5rem; font-weight: 900; line-height: 1; margin-bottom: 8px; color: var(--ink); }
+        h2 { font-size: 1.5rem; color: var(--red); margin-bottom: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 6px; }
+        p { font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px; text-align: center; }
+        
+        .btn {
+            background: var(--cream); border: 2px solid var(--ink); color: var(--ink);
+            padding: 12px; font-family: 'Playfair Display', serif; font-size: 1.05rem;
+            font-weight: bold; cursor: pointer; transition: all 0.1s; text-transform: uppercase;
+            width: 100%; margin-top: 8px; z-index: 10;
+        }
+        .btn:hover { background: var(--ink); color: var(--cream); }
+        .btn:active { transform: translateY(2px); }
+
+        /* Act 1: Show Grid */
+        .show-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .show-card { background: #fff; border: 2px solid var(--gold); padding: 10px; cursor: pointer; text-align: left; transition: all 0.2s; }
+        .show-card:hover { border-color: var(--red); transform: translateY(-2px); }
+        .show-card h3 { font-size: 0.9rem; margin-bottom: 4px; text-align: left; color: var(--red); }
+        .show-card p { font-size: 0.7rem; text-align: left; margin: 0; color: #555; }
+
+        /* Act 2: Sliders */
+        .slider-group { margin-bottom: 10px; font-family: 'Courier Prime', monospace; font-size: 0.85rem; }
+        .slider-group label { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 2px; }
+        input[type=range] { width: 100%; accent-color: var(--red); cursor: pointer; }
+        .budget-remaining { text-align: center; font-family: 'Courier Prime'; font-size: 1rem; font-weight: bold; padding: 6px; background: #e3dbd1; border: 1px dashed var(--ink); margin-bottom: 8px; }
+
+        /* Act 3: Casting Desk */
+        .desk-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--wood); z-index: -1; }
+        .drop-zones { display: flex; justify-content: space-between; height: 90px; margin-top: auto; gap: 10px; z-index: 2; position: relative;}
+        .folder { flex: 1; border: 3px dashed rgba(255,255,255,0.5); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display'; font-size: 1.1rem; font-weight: bold; color: white; background: rgba(0,0,0,0.3); }
+        .folder.cast { border-color: var(--success); }
+        .folder.reject { border-color: var(--red); }
+        
+        .headshot {
+            width: 105px; height: 135px; background: var(--cream); border: 1px solid #ccc;
+            position: absolute; padding: 5px; box-shadow: 2px 5px 12px rgba(0,0,0,0.4);
+            cursor: grab; display: flex; flex-direction: column; justify-content: space-between;
+            font-family: 'Courier Prime', monospace; text-align: center; font-size: 0.55rem;
+            z-index: 10; transition: transform 0.1s;
+        }
+        .headshot:active { cursor: grabbing; }
+        .hs-img { width: 100%; height: 35px; background: #ccc; margin-bottom: 3px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;}
+
+        /* Act 4 & 5 Cards */
+        .card-box { background: #fff; border: 2px solid var(--ink); padding: 15px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        /* Act 6: Spotlight Game */
+        .theatre-dark { background: #0a0a0a !important; color: white; }
+        .theatre-dark h2 { color: white; border-color: #333; }
+        .spotlight-area { position: absolute; top: 110px; left: 0; width: 100%; bottom: 70px; overflow: hidden; cursor: crosshair; }
+        .lead-actor { width: 45px; height: 45px; background: var(--gold); border-radius: 50%; position: absolute; transform: translate(-50%, -50%); transition: opacity 0.1s; opacity: 0.2; }
+        .lead-actor.lit { opacity: 1; box-shadow: 0 0 25px 12px rgba(197, 160, 89, 0.8); }
+        .spotlight { width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 70%); position: absolute; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; }
+        .spotlight-timer { font-family: 'Courier Prime'; font-size: 1.4rem; color: var(--gold); text-align: center; font-weight: bold; margin-bottom: 4px; }
+
+        /* Act 7: Cue Game with Strikes */
+        .standalone-gauge-card { background: #fff; border: 2px solid var(--ink); padding: 20px; text-align: center; border-radius: 6px; margin-top: auto; margin-bottom: auto; }
+        .meter-housing { width: 100%; height: 34px; background: #e8ded2; border-radius: 17px; position: relative; margin: 15px 0; overflow: hidden; border: 2px solid var(--ink); }
+        .sweet-spot { position: absolute; left: 40%; width: 20%; height: 100%; background: rgba(46, 125, 50, 0.4); border-left: 2px solid var(--success); border-right: 2px solid var(--success); }
+        .meter-needle { position: absolute; width: 6px; height: 100%; background: var(--red); box-shadow: 0 0 6px var(--red); left: 0; }
+        .strikes-container { font-size: 1.1rem; letter-spacing: 5px; margin-bottom: 8px; }
+
+        /* Curtains */
+        .curtain { position: absolute; top: 0; width: 50%; height: 100%; background: var(--red); z-index: 999; transition: transform 0.6s cubic-bezier(0.645, 0.045, 0.355, 1); background-image: repeating-linear-gradient(to right, transparent, transparent 40px, rgba(0,0,0,0.1) 40px, rgba(0,0,0,0.1) 80px); }
+        #curtain-left { left: 0; border-right: 5px solid #5a0000; transform: translateX(-100%); }
+        #curtain-right { right: 0; border-left: 5px solid #5a0000; transform: translateX(100%); }
+        .curtain-closed #curtain-left { transform: translateX(0); }
+        .curtain-closed #curtain-right { transform: translateX(0); }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="curtain" id="curtain-left"></div>
+        <div class="curtain" id="curtain-right"></div>
+
+        <div id="hud">
+            <div class="hud-stat">BUDGET: <span>$<span id="stat-budget">1000</span></span></div>
+            <div class="hud-stat">HYPE: <span><span id="stat-hype">0</span></span></div>
+            <div class="hud-stat">MORALE: <span><span id="stat-morale">100</span>%</span></div>
+        </div>
+
+        <div id="stage"></div>
+    </div>
+
+    <script>
+        let state = { budget: 1000, hype: 0, morale: 100, cast: [], showName: "", cuesHit: 0, strikes: 0 };
+
+        // --- RANDOMIZATION DATABASES ---
+        const showPool = [
+            { name: "Lettuce Be Miserable", cost: 200, hype: 35, desc: "A tragic French musical about leafy greens. High Rights (-$200), Massive Hype (+35)." },
+            { name: "Ham-in-ton", cost: 150, hype: 45, desc: "A fast-paced rap biography about historical butchers. Cost (-$150), Huge Hype (+45)." },
+            { name: "The Phantom of the Box Office", cost: 100, hype: 20, desc: "A romantic melodrama about accounting errors. Cost (-$100), Steady Hype (+20)." },
+            { name: "Cats... But With Actual Dogs", cost: 50, hype: 10, desc: "Pure chaotic nonsense. Low Cost (-$50), Mild Hype (+10), Risky Morale." },
+            { name: "Les Mis-click-ables", cost: 180, hype: 40, desc: "A sweeping epic about accidentally deleting the lighting schedule. Cost (-$180), High Hype (+40)." },
+            { name: "Wicked... But Mostly Confused", cost: 130, hype: 25, desc: "A magical retelling where nobody knows their lines. Cost (-$130), Moderate Hype (+25)." }
+        ];
+
+        const actorPool = [
+            { name: "Arthur Pendelton", emoji: "🎭", role: "Tragic Lead", stats: "High Hype, Moody" },
+            { name: "Clara Oswald", emoji: "👩‍🎤", role: "Understudy", stats: "Reliable, Boosts Morale" },
+            { name: "Lord Blackwood", emoji: "🎩", role: "Visiting Star", stats: "Massive Hype, Costly" },
+            { name: "Pip", emoji: "🤡", role: "Physical Comedian", stats: "Keeps Spirits High" },
+            { name: "Madame Vastra", emoji: "🔮", role: "Dramatic Soprano", stats: "Commands the Stage" },
+            { name: "Barnaby Jones", emoji: "🐸", role: "Puppeteer", stats: "Chaotic Energy" }
+        ];
+
+        const dramaPool = [
+            {
+                title: "The Star Ego Clash",
+                desc: "Your lead actor refuses to share the stage dressing room with the supporting cast, threatening to walk out before tech week.",
+                opt1: { text: "Cater to their demands (-$40, +10 Morale)", b: -40, h: 0, m: 10 },
+                opt2: { text: "Fine them and lay down the law (+15 Hype from gossip, -20 Morale)", b: 0, h: 15, m: -20 }
+            },
+            {
+                title: "Prop Malfunction",
+                desc: "During rehearsal combat, the main prop sword snaps clean in half.",
+                opt1: { text: "Order authentic steel replacements (-$60, +10 Hype)", b: -60, h: 10, m: 0 },
+                opt2: { text: "Replace it with a squeaky rubber chicken (+15 Morale from laughs, -10 Hype)", b: 0, h: -10, m: 15 }
+            },
+            {
+                title: "Costume Catastrophe",
+                desc: "The lead's quick-change costume arrives two sizes too small and completely ripped.",
+                opt1: { text: "Pay for overnight tailor express (-$50, +5 Morale)", b: -50, h: 0, m: 5 },
+                opt2: { text: "Embrace the avant-garde aesthetic (+10 Hype, -15 Morale)", b: 0, h: 10, m: -15 }
+            },
+            {
+                title: "Acoustic Anarchy",
+                desc: "The venue's orchestra pit starts leaking water right over the harpist.",
+                opt1: { text: "Hire emergency plumbers (-$45, +5 Morale)", b: -45, h: 0, m: 5 },
+                opt2: { text: "Just crank up the synthesizer volume (+5 Hype, -10 Morale)", b: 0, h: 5, m: -10 }
+            }
+        ];
+
+        const marketingPool = [
+            {
+                title: "Viral Social Media Stunt",
+                desc: "Hire internet pranksters to stage a faux feud outside the theatre.",
+                cost: 60, hypeGain: 30, revenueBoost: 120
+            },
+            {
+                title: "Traditional Newspaper Blitz",
+                desc: "Take out full-page glossy spreads in the weekend culture gazette.",
+                cost: 80, hypeGain: 20, revenueBoost: 180
+            },
+            {
+                title: "Guerilla Street Flash Mob",
+                desc: "Send cast members to burst into song in the middle of a crowded square.",
+                cost: 30, hypeGain: 15, revenueBoost: 80
+            }
+        ];
+
+        let currentShows = [];
+        let currentActors = [];
+        let currentDramas = [];
+        let currentMarketing = {};
+
+        function updateHUD() {
+            document.getElementById('stat-budget').innerText = state.budget;
+            document.getElementById('stat-hype').innerText = state.hype;
+            document.getElementById('stat-morale').innerText = Math.max(0, state.morale);
+        }
+
+        function transitionTo(renderFunction) {
+            const container = document.getElementById('game-container');
+            container.classList.add('curtain-closed');
+            setTimeout(() => {
+                document.getElementById('stage').innerHTML = '';
+                document.getElementById('stage').className = '';
+                renderFunction();
+                updateHUD();
+            }, 600);
+            setTimeout(() => { container.classList.remove('curtain-closed'); }, 1000);
+        }
+
+        function initGame() {
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('stage').innerHTML = `
+                <div style="margin: auto 0; text-align: center;">
+                    <h3 style="color:var(--gold); letter-spacing:3px; margin-bottom:4px; font-size:0.9rem;">A THEATRE EXPERIENCE</h3>
+                    <h1>CHOOKAS</h1>
+                    <p style="font-family:'Courier Prime'; margin-top:4px; font-size:0.85rem; color:#444; font-weight:bold;">Keep the curtain up and save the show!</p>
+                    
+                    <div style="background:#fff; border:1px solid var(--ink); padding: 10px; margin: 10px 0; text-align: left; font-size: 0.75rem; font-family:'Courier Prime';">
+                        <strong>DIRECTOR'S GOALS:</strong><br>
+                        🎭 <strong>Hype:</strong> Build hype above 90 to secure a Triumph!<br>
+                        💰 <strong>Budget:</strong> Manage your funds so you don't go broke!<br>
+                        ❤️ <strong>Morale:</strong> Keep cast morale above 0% so they don't walk out.
+                    </div>
+                </div>
+                <button class="btn" onclick="startAct1()">PLAY</button>
+            `;
+        }
+
+        // ==========================================
+        // ACT I: CHOOSE THE SHOW (RANDOMIZED)
+        // ==========================================
+        function startAct1() {
+            currentShows = [...showPool].sort(() => 0.5 - Math.random()).slice(0, 4);
+            
+            document.getElementById('hud').style.display = 'flex';
+            let gridHtml = '';
+            currentShows.forEach(s => {
+                gridHtml += `
+                    <div class="show-card" onclick="selectShow('${s.name}', ${s.cost}, ${s.hype})">
+                        <h3>${s.name}</h3>
+                        <p>${s.desc}</p>
+                    </div>
+                `;
+            });
+
+            document.getElementById('stage').innerHTML = `
+                <h2>Act I: Season Selection</h2>
+                <p style="font-size:0.85rem; margin-bottom:8px;">Select this season's marquee production:</p>
+                <div class="show-grid">${gridHtml}</div>
+            `;
+        }
+
+        function selectShow(name, cost, hypeBonus) {
+            state.showName = name;
+            state.budget -= cost;
+            state.hype += hypeBonus;
+            transitionTo(startAct2);
+        }
+
+        // ==========================================
+        // ACT II: BUDGET SLIDERS
+        // ==========================================
+        function startAct2() {
+            document.getElementById('stage').innerHTML = `
+                <h2>Act II: Pre-Production</h2>
+                <p style="font-size:0.85rem; margin-bottom:6px;">Producing: <em>${state.showName}</em>. Allocate remaining funds:</p>
+                
+                <div class="budget-remaining">Remaining Funds: $<span id="rem-budget">${state.budget}</span></div>
+                
+                <div>
+                    <div class="slider-group">
+                        <label>Star Talent <span id="val-tal">$0</span></label>
+                        <input type="range" id="slide-tal" min="0" max="${state.budget}" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>Set Design <span id="val-set">$0</span></label>
+                        <input type="range" id="slide-set" min="0" max="${state.budget}" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>General Reserves <span id="val-mar">$0</span></label>
+                        <input type="range" id="slide-mar" min="0" max="${state.budget}" value="0">
+                    </div>
+                </div>
+                <button class="btn" onclick="finalizeAct2()">LOCK PRODUCTION BUDGET</button>
+            `;
+
+            const sTal = document.getElementById('slide-tal');
+            const sSet = document.getElementById('slide-set');
+            const sMar = document.getElementById('slide-mar');
+            const rem = document.getElementById('rem-budget');
+            let maxB = state.budget;
+
+            function updateSliders(e) {
+                let t = parseInt(sTal.value), s = parseInt(sSet.value), m = parseInt(sMar.value);
+                let total = t + s + m;
+                if (total > maxB) {
+                    e.target.value = parseInt(e.target.value) - (total - maxB);
+                    t = parseInt(sTal.value); s = parseInt(sSet.value); m = parseInt(sMar.value);
+                }
+                document.getElementById('val-tal').innerText = '$'+t;
+                document.getElementById('val-set').innerText = '$'+s;
+                document.getElementById('val-mar').innerText = '$'+m;
+                rem.innerText = maxB - (t + s + m);
+            }
+            [sTal, sSet, sMar].forEach(el => el.addEventListener('input', updateSliders));
+        }
+
+        function finalizeAct2() {
+            const tal = parseInt(document.getElementById('slide-tal').value);
+            const set = parseInt(document.getElementById('slide-set').value);
+            const res = parseInt(document.getElementById('slide-mar').value);
+            
+            state.budget -= (tal + set + res);
+            state.budget += res; // Reserves stay in budget
+            state.hype += Math.floor(tal / 15);
+            if (set < 100) state.morale -= 15;
+            else state.morale += 15;
+            
+            transitionTo(startAct3);
+        }
+
+        // ==========================================
+        // ACT III: CASTING (RANDOMIZED ACTORS)
+        // ==========================================
+        function startAct3() {
+            currentActors = [...actorPool].sort(() => 0.5 - Math.random()).slice(0, 4);
+
+            document.getElementById('stage').innerHTML = `
+                <div class="desk-bg"></div>
+                <h2 style="color:var(--cream); border-color:var(--cream); text-shadow: 2px 2px 4px #000;">Act III: Casting</h2>
+                <p style="color:white; text-shadow: 1px 1px 2px #000; font-size:0.85rem;">Drag 2 actors into the CAST folder.</p>
+                
+                <div id="desk-area" style="position:absolute; top:90px; left:0; width:100%; bottom:105px;"></div>
+
+                <div class="drop-zones">
+                    <div class="folder cast" id="zone-cast">CAST (0/2)</div>
+                    <div class="folder reject" id="zone-reject">REJECT</div>
+                </div>
+            `;
+            
+            const desk = document.getElementById('desk-area');
+            let castCount = 0;
+
+            currentActors.forEach((a) => {
+                const el = document.createElement('div');
+                el.className = 'headshot';
+                el.innerHTML = `<div class="hs-img">${a.emoji}</div><strong>${a.name}</strong><br><em>${a.role}</em><br><small>${a.stats}</small>`;
+                el.style.left = (Math.random() * 45 + 10) + '%';
+                el.style.top = (Math.random() * 35 + 5) + '%';
+                el.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+                desk.appendChild(el);
+
+                let isDragging = false, startX, startY, initialLeft, initialTop;
+                
+                el.addEventListener('pointerdown', (e) => {
+                    isDragging = true;
+                    el.style.zIndex = 100;
+                    el.style.transform = `rotate(0deg) scale(1.05)`;
+                    startX = e.clientX; startY = e.clientY;
+                    initialLeft = el.offsetLeft; initialTop = el.offsetTop;
+                    el.setPointerCapture(e.pointerId);
+                });
+
+                el.addEventListener('pointermove', (e) => {
+                    if (!isDragging) return;
+                    el.style.left = initialLeft + (e.clientX - startX) + 'px';
+                    el.style.top = initialTop + (e.clientY - startY) + 'px';
+                });
+
+                el.addEventListener('pointerup', (e) => {
+                    isDragging = false;
+                    el.style.zIndex = 10;
+                    el.style.transform = `rotate(${Math.random() * 30 - 15}deg)`;
+                    
+                    const rect = el.getBoundingClientRect();
+                    const castZone = document.getElementById('zone-cast').getBoundingClientRect();
+                    const rejectZone = document.getElementById('zone-reject').getBoundingClientRect();
+                    const centerX = rect.left + rect.width/2;
+                    const centerY = rect.top + rect.height/2;
+
+                    if (centerY > castZone.top && centerX < window.innerWidth/2) {
+                        el.style.display = 'none';
+                        castCount++;
+                        document.getElementById('zone-cast').innerText = `CAST (${castCount}/2)`;
+                        state.cast.push(a);
+                        if (castCount >= 2) processCasting();
+                    } else if (centerY > rejectZone.top && centerX > window.innerWidth/2) {
+                        el.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        function processCasting() {
+            state.cast.forEach(a => {
+                if(a.name === "Arthur Pendelton" || a.name === "Madame Vastra") { state.hype += 20; state.morale -= 10; }
+                if(a.name === "Clara Oswald" || a.name === "Pip") { state.morale += 20; state.hype += 5; }
+                if(a.name === "Lord Blackwood") { state.hype += 35; state.budget -= 50; }
+                if(a.name === "Barnaby Jones") { state.morale += 15; state.hype += 10; }
+            });
+            currentDramas = [...dramaPool].sort(() => 0.5 - Math.random()).slice(0, 2);
+            setTimeout(() => transitionTo(() => startAct4(1)), 500);
+        }
+
+        // ==========================================
+        // ACT IV: REHEARSAL DRAMA (RANDOMIZED)
+        // ==========================================
+        function startAct4(scenarioIndex) {
+            if (scenarioIndex > currentDramas.length) {
+                transitionTo(startAct5);
+                return;
+            }
+
+            const sc = currentDramas[scenarioIndex - 1];
+            document.getElementById('stage').innerHTML = `
+                <h2>Act IV: Rehearsal Drama (${scenarioIndex}/2)</h2>
+                <div class="card-box">
+                    <h3 style="color:var(--red); margin-bottom:6px; font-size:1rem;">${sc.title}</h3>
+                    <p style="text-align:left; font-size:0.85rem;">${sc.desc}</p>
+                </div>
+                <button class="btn" onclick="resolveDrama(${sc.opt1.b}, ${sc.opt1.h}, ${sc.opt1.m}, ${scenarioIndex})">${sc.opt1.text}</button>
+                <button class="btn" onclick="resolveDrama(${sc.opt2.b}, ${sc.opt2.h}, ${sc.opt2.m}, ${scenarioIndex})">${sc.opt2.text}</button>
+            `;
+        }
+
+        function resolveDrama(b, h, m, index) {
+            state.budget += b;
+            state.hype += h;
+            state.morale += m;
+            transitionTo(() => startAct4(index + 1));
+        }
+
+        // ==========================================
+        // ACT V: MARKETING STRATEGY & TICKET SALES
+        // ==========================================
+        function startAct5() {
+            currentMarketing = marketingPool[Math.floor(Math.random() * marketingPool.length)];
+
+            document.getElementById('stage').innerHTML = `
+                <h2>Act V: Marketing Campaign</h2>
+                <p style="font-size:0.85rem; margin-bottom:8px;">Choose your promotional strategy to drive ticket sales and recover box-office revenue:</p>
+                
+                <div class="card-box">
+                    <h3 style="color:var(--red); margin-bottom:6px; font-size:1rem;">${currentMarketing.title}</h3>
+                    <p style="text-align:left; font-size:0.85rem;">${currentMarketing.desc}</p>
+                    <div style="font-family:'Courier Prime'; font-size:0.8rem; margin-top:8px; color:#555;">
+                        Cost: $${currentMarketing.cost} | Hype Gain: +${currentMarketing.hypeGain} | Ticket Sales Revenue: +$${currentMarketing.revenueBoost}
+                    </div>
+                </div>
+
+                <button class="btn" style="background:var(--success); color:white; border:none;" onclick="executeMarketing(true)">LAUNCH CAMPAIGN</button>
+                <button class="btn" style="background:#888; color:white; border:none;" onclick="executeMarketing(false)">SKIP MARKETING (SAVE MONEY)</button>
+            `;
+        }
+
+        function executeMarketing(launch) {
+            if (launch) {
+                if (state.budget >= currentMarketing.cost) {
+                    state.budget -= currentMarketing.cost;
+                    state.hype += currentMarketing.hypeGain;
+                    state.budget += currentMarketing.revenueBoost; // Ticket sales revenue added to budget!
+                } else {
+                    alert("Not enough budget for this campaign! Skipping.");
+                }
+            }
+            transitionTo(startAct6);
+        }
+
+        // ==========================================
+        // ACT VI: SPOTLIGHT SURVIVAL GAME
+        // ==========================================
+        let spotlightLoop, spotlightActive = false, spotlightTimeLeft = 12;
+        let actorPos = {x: 50, y: 50}, actorVel = {x: 1.5, y: 1.2};
+        let mousePos = {x: 50, y: 50};
+
+        function startAct6() {
+            document.getElementById('stage').classList.add('theatre-dark');
+            document.getElementById('stage').innerHTML = `
+                <h2>Act VI: Tech Dress Rehearsal</h2>
+                <div class="spotlight-timer" id="spotlight-clock">12s</div>
+                <p style="font-size:0.8rem; color:#bbb; margin-bottom:4px;">Keep your mouse/finger on the lead actor to maintain lighting focus!</p>
+                
+                <div class="spotlight-area" id="stage-area">
+                    <div class="lead-actor" id="lead"></div>
+                    <div class="spotlight" id="spot"></div>
+                </div>
+            `;
+
+            spotlightActive = true;
+            spotlightTimeLeft = 12;
+
+            const stageArea = document.getElementById('stage-area');
+            stageArea.addEventListener('pointermove', (e) => {
+                const rect = stageArea.getBoundingClientRect();
+                mousePos.x = ((e.clientX - rect.left) / rect.width) * 100;
+                mousePos.y = ((e.clientY - rect.top) / rect.height) * 100;
+            });
+
+            let timerInterval = setInterval(() => {
+                spotlightTimeLeft--;
+                const clock = document.getElementById('spotlight-clock');
+                if (clock) clock.innerText = spotlightTimeLeft + 's';
+                if (spotlightTimeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    spotlightActive = false;
+                    cancelAnimationFrame(spotlightLoop);
+                    transitionTo(startAct7);
+                }
+            }, 1000);
+
+            spotlightLoop = requestAnimationFrame(spotlightTick);
+        }
+
+        function spotlightTick() {
+            if (!spotlightActive) return;
+
+            actorPos.x += actorVel.x; actorPos.y += actorVel.y;
+            if (actorPos.x < 15 || actorPos.x > 85) actorVel.x *= -1;
+            if (actorPos.y < 15 || actorPos.y > 85) actorVel.y *= -1;
+            
+            const lead = document.getElementById('lead');
+            const spot = document.getElementById('spot');
+            if (lead && spot) {
+                lead.style.left = actorPos.x + '%'; lead.style.top = actorPos.y + '%';
+                spot.style.left = mousePos.x + '%'; spot.style.top = mousePos.y + '%';
+
+                const dist = Math.hypot(actorPos.x - mousePos.x, actorPos.y - mousePos.y);
+                if (dist < 15) {
+                    lead.classList.add('lit');
+                    if (Math.random() > 0.9) state.hype += 1;
+                } else {
+                    lead.classList.remove('lit');
+                    if (Math.random() > 0.9) state.morale -= 1;
+                }
+                updateHUD();
+            }
+
+            spotlightLoop = requestAnimationFrame(spotlightTick);
+        }
+
+        // ==========================================
+        // ACT VII: OPENING NIGHT CUES (3 STRIKES)
+        // ==========================================
+        let gaugeAnim, gaugeActive = false, needlePos = 0, needleDir = 2.2;
+
+        function startAct7() {
+            document.getElementById('stage').classList.remove('theatre-dark');
+            state.cuesHit = 0;
+            state.strikes = 0;
+            gaugeActive = true;
+            
+            document.getElementById('stage').innerHTML = `
+                <h2>Act VII: Opening Night Cues</h2>
+                <div class="standalone-gauge-card">
+                    <h3 style="color:var(--red); font-size:1rem; margin-bottom:4px;">CALL THE SHOW CUES</h3>
+                    <p style="font-size:0.75rem; color:#555;">Hit the button when the needle is in the green zone. 3 misses and the curtain drops!</p>
+                    
+                    <div class="strikes-container" id="strikes-display">🟢 🟢 🟢</div>
+
+                    <div class="meter-housing">
+                        <div class="sweet-spot"></div>
+                        <div class="meter-needle" id="gauge-needle"></div>
+                    </div>
+
+                    <p style="font-family:'Courier Prime'; font-weight:bold; color:var(--postal-blue); margin-bottom:10px; font-size:0.85rem;" id="cue-status">Cues Hit: 0 / 3</p>
+                    
+                    <button class="btn" style="background:var(--red); color:#fff; border:none; margin-top:0;" id="cue-btn" onclick="catchStandaloneCue()">CALL CUE</button>
+                </div>
+            `;
+
+            animateNeedle();
+        }
+
+        function animateNeedle() {
+            if (!gaugeActive) return;
+            needlePos += needleDir;
+            if (needlePos >= 96 || needlePos <= 0) needleDir *= -1;
+            const needle = document.getElementById('gauge-needle');
+            if (needle) needle.style.left = needlePos + '%';
+            gaugeAnim = requestAnimationFrame(animateNeedle);
+        }
+
+        function catchStandaloneCue() {
+            if (!gaugeActive) return;
+            const btn = document.getElementById('cue-btn');
+
+            if (needlePos >= 40 && needlePos <= 60) {
+                state.cuesHit++;
+                document.getElementById('cue-status').innerText = `Cues Hit: ${state.cuesHit} / 3`;
+                btn.style.background = 'var(--success)';
+                btn.innerText = '🎯 PERFECT CUE CALLED!';
+                needleDir *= 1.25;
+
+                if (state.cuesHit >= 3) {
+                    gaugeActive = false;
+                    cancelAnimationFrame(gaugeAnim);
+                    state.hype += 30;
+                    setTimeout(() => transitionTo(endGame), 800);
+                    return;
+                }
+            } else {
+                state.strikes++;
+                updateStrikesDisplay();
+                btn.style.background = 'var(--wood)';
+                btn.innerText = '❌ MISSED CUE!';
+
+                if (state.strikes >= 3) {
+                    gaugeActive = false;
+                    cancelAnimationFrame(gaugeAnim);
+                    state.morale = 0;
+                    setTimeout(() => transitionTo(endGame), 800);
+                    return;
+                }
+            }
+
+            setTimeout(() => {
+                if (gaugeActive) {
+                    btn.style.background = 'var(--red)';
+                    btn.innerText = 'CALL CUE';
+                }
+            }, 500);
+        }
+
+        function updateStrikesDisplay() {
+            let display = "";
+            for(let i=0; i<3; i++) {
+                display += (i < state.strikes) ? "🔴 " : "🟢 ";
+            }
+            const el = document.getElementById('strikes-display');
+            if(el) el.innerText = display.trim();
+        }
+
+        // ==========================================
+        // END GAME
+        // ==========================================
+        function endGame() {
+            let review, title;
+            if (state.morale <= 0 || state.strikes >= 3 || state.budget < 0) { 
+                title = "DISASTER"; 
+                review = "Between bankruptcy, walkouts, or dropped safety curtains, the production collapsed. A legendary catastrophe."; 
+            } 
+            else if (state.hype > 90) { 
+                title = "A TRIUMPH!"; 
+                review = "A standing ovation for <em>" + state.showName + "</em>! Extended run guaranteed across the West End."; 
+            } 
+            else if (state.hype > 40) { 
+                title = "MODEST SUCCESS"; 
+                review = "Solid performances. It won't win major awards, but it pays the rent."; 
+            } 
+            else { 
+                title = "PANNED"; 
+                review = "A disjointed, poorly paced disaster. The show closes by Sunday."; 
+            }
+
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('stage').innerHTML = `
+                <h3 style="color:var(--gold); margin-bottom:8px;">FINAL REVIEW</h3>
+                <h1 style="font-size: 1.6rem; color:var(--red); margin-bottom: 8px;">${title}</h1>
+                <p style="font-style: italic; border-left: 3px solid var(--ink); padding-left: 10px; text-align: left; font-size:0.85rem;">"${review}"</p>
+                
+                <div style="background:#fff; border:1px solid var(--ink); padding: 8px; margin-bottom:12px;">
+                    <p style="margin:0; font-family:'Courier Prime'; text-align:left; font-size:0.75rem;">
+                        <strong>PRODUCTION STATS:</strong><br>
+                        Show: ${state.showName}<br>
+                        Final Budget: $${state.budget}<br>
+                        Final Hype: ${state.hype}<br>
+                        Closing Morale: ${state.morale}%
+                    </p>
+                </div>
+                <button class="btn" onclick="location.reload()">DIRECT ANOTHER SHOW</button>
+            `;
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
